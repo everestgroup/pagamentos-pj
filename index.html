@@ -195,6 +195,16 @@
   .add-row input.valor{ flex:0.7; min-width:90px; font-family:'IBM Plex Mono', monospace; }
   .add-row select{ border:1px solid var(--border); background:var(--surface); color:var(--text); border-radius:7px; padding:8px 10px; font-size:13.5px; font-family:inherit; }
 
+  .roas-grid{ grid-template-columns: 1.3fr 1fr 1fr 0.9fr; }
+  .roas-cell{ font-family:'IBM Plex Mono', monospace; font-size:13.5px; font-variant-numeric:tabular-nums; }
+  .roas-cell::before{ content: attr(data-label) ": "; color:var(--text-muted); font-weight:400; display:none; }
+  .roas-panel-head-right{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .roas-sync-info{ font-size:12px; white-space:nowrap; }
+  .roas-date-input{
+    border:1px solid var(--border); background:var(--surface-2); color:var(--text);
+    font-family:'IBM Plex Mono', monospace; font-size:12.5px; border-radius:6px; padding:5px 8px;
+  }
+
   .footer-actions{ display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
   .hint{ font-size:12.5px; color:var(--text-muted); max-width:52ch; }
   .empty{ padding:40px 20px; text-align:center; color:var(--text-muted); font-size:14px; }
@@ -227,6 +237,8 @@
     .add-row input, .add-row select{ width:100%; }
     .footer-actions{ flex-direction:column; align-items:stretch; }
     .footer-actions button{ width:100%; }
+    .roas-cell::before{ display:inline; }
+    .roas-panel-head-right{ width:100%; justify-content:space-between; }
   }
 </style>
 </head>
@@ -288,6 +300,20 @@
       <div class="stat pendente"><div class="label">Pendente</div><div class="value" id="statPendente">—</div></div>
     </div>
 
+    <div class="panel" id="roasPanel">
+      <div class="panel-head">
+        <h2>ROAS por gestor</h2>
+        <div class="roas-panel-head-right">
+          <span class="count roas-sync-info" id="roasSyncInfo"></span>
+          <input type="date" class="roas-date-input" id="roasDate">
+        </div>
+      </div>
+      <div class="row-grid roas-grid head">
+        <div>Gestor</div><div>Custo</div><div>Receita</div><div>ROAS</div>
+      </div>
+      <div id="roasList"></div>
+    </div>
+
     <div class="panel">
       <div class="panel-head">
         <h2>Prestadores</h2>
@@ -343,6 +369,9 @@
     let allRows = [];
     let channel = null;
     let usdRate = null;
+    let roasRows = [];
+    let roasSyncStatus = null;
+    let roasChannel = null;
 
     async function fetchUsdRate(){
       try{
@@ -453,6 +482,7 @@
         loginScreen.hidden = false;
         appScreen.hidden = true;
         if (channel){ sb.removeChannel(channel); channel = null; }
+        if (roasChannel){ sb.removeChannel(roasChannel); roasChannel = null; }
       }
     });
 
@@ -480,6 +510,90 @@
       channel = sb.channel('prestadores-changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'prestadores' }, () => loadRows())
         .subscribe();
+
+      // ROAS por gestor/dia — sincronizado automaticamente 1x/dia via Edge Function + cron
+      // (ver public.roas_diario e public.roas_sync_status); aqui só lemos e mostramos.
+      const roasDateEl = $('#roasDate');
+      if (roasDateEl && !roasDateEl.value) roasDateEl.value = todayStr();
+      loadRoasDiario();
+      loadRoasSyncStatus();
+      roasChannel = sb.channel('roas-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'roas_diario' }, () => loadRoasDiario())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'roas_sync_status' }, () => loadRoasSyncStatus())
+        .subscribe();
+    }
+
+    async function loadRoasDiario(){
+      const date = $('#roasDate').value || todayStr();
+      const { data, error } = await sb.from('roas_diario').select('*').eq('data', date);
+      if (error){ showToast('Não foi possível carregar o ROAS do dia.'); return; }
+      roasRows = data || [];
+      renderRoas();
+    }
+
+    async function loadRoasSyncStatus(){
+      const { data, error } = await sb.from('roas_sync_status').select('*').eq('id', 1).maybeSingle();
+      if (!error) roasSyncStatus = data;
+      renderRoasSyncInfo();
+    }
+
+    function renderRoasSyncInfo(){
+      const el = $('#roasSyncInfo');
+      if (!el) return;
+      if (!roasSyncStatus || !roasSyncStatus.last_run_at){
+        el.textContent = 'ainda sem sincronização automática';
+        el.style.color = '';
+        return;
+      }
+      const d = new Date(roasSyncStatus.last_run_at);
+      const hora = d.toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+      el.textContent = (roasSyncStatus.last_success ? 'sincronizado às ' : '⚠ última sync falhou — ') + hora;
+      el.style.color = roasSyncStatus.last_success ? '' : 'var(--danger)';
+    }
+
+    function fmtRoas(roas){
+      if (roas == null) return '—';
+      return Math.round(roas * 100) + '%';
+    }
+
+    function renderRoas(){
+      const listEl = $('#roasList');
+      if (!roasRows.length){
+        listEl.innerHTML = '<div class="empty">Sem dados de ROAS para este dia ainda.</div>';
+        return;
+      }
+      const rows = roasRows.slice().sort((a,b) => (a.gestor||'').localeCompare(b.gestor||'', 'pt-BR'));
+      listEl.innerHTML = '';
+      rows.forEach(r => {
+        const row = document.createElement('div');
+        row.className = 'row-grid roas-grid prestador-row';
+
+        const nome = document.createElement('div');
+        nome.textContent = r.gestor;
+
+        const custo = document.createElement('div');
+        custo.className = 'roas-cell';
+        custo.dataset.label = 'Custo';
+        custo.textContent = fmtMoney(Number(r.cost) || 0);
+
+        const receita = document.createElement('div');
+        receita.className = 'roas-cell';
+        receita.dataset.label = 'Receita';
+        receita.textContent = fmtMoney(Number(r.revenue) || 0);
+
+        const roasCell = document.createElement('div');
+        roasCell.className = 'roas-cell';
+        roasCell.dataset.label = 'ROAS';
+        roasCell.style.fontWeight = '700';
+        roasCell.textContent = fmtRoas(r.roas);
+        roasCell.style.color = (r.roas == null) ? '' : (r.roas >= 1 ? 'var(--pago)' : 'var(--danger)');
+
+        row.appendChild(nome);
+        row.appendChild(custo);
+        row.appendChild(receita);
+        row.appendChild(roasCell);
+        listEl.appendChild(row);
+      });
     }
 
     async function updateRow(id, patch){
@@ -732,6 +846,8 @@
         if (e.key === 'Enter'){ $('#addBtn').click(); }
       });
     });
+
+    $('#roasDate').addEventListener('change', loadRoasDiario);
 
     competenciaSelect.addEventListener('change', () => {
       competenciaSelect.dataset.userPicked = '1';
