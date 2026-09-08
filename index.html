@@ -83,6 +83,18 @@
   }
   .competencia select{ border:none; background:transparent; color:var(--text); font-family:'IBM Plex Mono', monospace; font-size:13px; font-weight:600; }
 
+  .periodo-filtro{
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    background:var(--surface-2); border:1px solid var(--border); border-radius:100px;
+    padding:6px 14px; font-size:13px; color:var(--text-muted);
+  }
+  .periodo-filtro input[type="date"]{
+    border:1px solid var(--border); background:var(--surface); color:var(--text);
+    font-family:'IBM Plex Mono', monospace; font-size:12.5px; border-radius:6px; padding:3px 6px;
+  }
+  .periodo-filtro .limpar{ background:transparent; border:none; color:var(--accent); font-size:12.5px; font-weight:600; cursor:pointer; padding:2px 4px; }
+  .periodo-filtro .limpar[hidden]{ display:none; }
+
   .who{ font-size:13px; color:var(--text-muted); }
   .who b{ color:var(--text); }
 
@@ -98,7 +110,7 @@
   .panel-head h2{ font-family:'Fraunces', serif; font-size:17px; font-weight:600; margin:0; }
   .panel-head .count{ font-size:13px; color:var(--text-muted); }
 
-  .row-grid{ display:grid; grid-template-columns: 1.15fr 1.35fr 0.7fr 0.95fr 0.95fr 0.9fr auto; gap:8px; align-items:center; }
+  .row-grid{ display:grid; grid-template-columns: 1.05fr 1.15fr 0.85fr 0.7fr 0.9fr 0.9fr 0.85fr auto; gap:8px; align-items:center; }
   .row-grid.head{ font-size:11.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted); padding:10px 20px; background:var(--surface-2); border-bottom:1px solid var(--border); }
   .prestador-row{ padding:12px 20px; border-bottom:1px solid var(--border); }
   .prestador-row:last-child{ border-bottom:none; }
@@ -125,16 +137,37 @@
     margin-left:6px; width:fit-content;
   }
 
-  .valor-wrap{ display:flex; flex-direction:column; gap:2px; }
-  .valor-row{ display:flex; align-items:center; gap:2px; }
-  .valor-row input.valor{ flex:1; min-width:0; }
-  .moeda-sel{
-    border:1px solid transparent; background:transparent; color:var(--text-muted); font-family:inherit;
-    font-size:11.5px; padding:4px 2px; border-radius:6px;
+  .valor-wrap{
+    display:flex; flex-direction:column; gap:3px; background:var(--surface-2);
+    border:1px solid var(--border); border-radius:8px; padding:5px 6px;
   }
-  .moeda-sel:hover{ border-color:var(--border); }
-  .moeda-sel:focus{ outline:none; border-color:var(--accent); background:var(--surface-2); }
-  .valor-sub{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--text-muted); padding-left:2px; white-space:nowrap; }
+  .valor-row{ display:flex; align-items:stretch; gap:0; }
+  .valor-row input.valor{
+    flex:1; min-width:0; background:var(--surface); border:1px solid var(--border);
+    border-right:none; border-radius:6px 0 0 6px; padding:5px 6px;
+  }
+  .valor-row input.valor:hover{ border-color:var(--border); }
+  .valor-row input.valor:focus{ background:var(--surface); }
+  .moeda-sel{
+    border:1px solid var(--border); background:var(--surface); color:var(--text); font-family:inherit;
+    font-weight:600; font-size:12px; padding:5px 6px; border-radius:0 6px 6px 0; cursor:pointer;
+  }
+  .moeda-sel:hover{ background:var(--accent-soft); }
+  .moeda-sel:focus{ outline:none; border-color:var(--accent); }
+  .valor-sub{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--accent); font-weight:600;
+    padding:0 2px; white-space:nowrap;
+  }
+  .prejuizo-cell{
+    font-family:'IBM Plex Mono', monospace; font-size:12.5px; font-variant-numeric:tabular-nums;
+  }
+  .prejuizo-cell input.prejuizo{
+    width:100%; border:1px solid transparent; background:transparent; color:var(--danger);
+    font-family:'IBM Plex Mono', monospace; font-size:12.5px; padding:6px 8px; border-radius:6px; font-weight:600;
+  }
+  .prejuizo-cell input.prejuizo:hover{ border-color:var(--border); }
+  .prejuizo-cell input.prejuizo:focus{ outline:none; border-color:var(--accent); background:var(--surface-2); }
+  .prejuizo-cell input.prejuizo::placeholder{ color:var(--text-muted); font-weight:400; }
 
   .status-badge{
     border:none; cursor:pointer; font-family:'Source Sans 3', sans-serif; font-size:12.5px; font-weight:600;
@@ -173,11 +206,25 @@
   .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
 
   @media (max-width: 720px){
+    .wrap{ padding:20px 12px 60px; }
+    header{ align-items:flex-start; }
+    h1{ font-size:26px; }
+    .head-right{ width:100%; }
+    .head-right .who{ width:100%; }
+    .competencia, .periodo-filtro{ flex:1; justify-content:center; }
     .row-grid{ grid-template-columns: 1fr; gap:6px; }
     .row-grid.head{ display:none; }
-    .prestador-row{ display:flex; flex-direction:column; gap:6px; padding:14px 16px; }
+    .prestador-row{ display:flex; flex-direction:column; gap:8px; padding:14px 16px; }
+    .prestador-row > div, .prestador-row > input{ width:100%; }
+    .valor-wrap{ width:100%; }
+    .prejuizo-cell::before{ content:"Prejuízo: "; color:var(--text-muted); font-weight:400; }
+    .vencimento{ flex-direction:row; align-items:center; flex-wrap:wrap; gap:8px; }
     .row-actions{ justify-content:space-between; width:100%; }
     .stats{ grid-template-columns:repeat(2,1fr); }
+    .add-row{ flex-direction:column; align-items:stretch; }
+    .add-row input, .add-row select{ width:100%; }
+    .footer-actions{ flex-direction:column; align-items:stretch; }
+    .footer-actions button{ width:100%; }
   }
 </style>
 </head>
@@ -216,6 +263,13 @@
           <span>Competência</span>
           <select id="competenciaSelect"></select>
         </div>
+        <div class="periodo-filtro">
+          <span>Período</span>
+          <input type="date" id="filterDateFrom" title="De">
+          <span>até</span>
+          <input type="date" id="filterDateTo" title="Até">
+          <button class="limpar" id="clearFiltroBtn" hidden>limpar</button>
+        </div>
         <div class="competencia" id="usdRateBadge" hidden>
           <span>US$ → R$</span>
           <span id="usdRateValue" style="font-family:'IBM Plex Mono', monospace; font-weight:600;"></span>
@@ -237,7 +291,7 @@
         <span class="count" id="panelCount"></span>
       </div>
       <div class="row-grid head">
-        <div>Nome</div><div>Chave PIX</div><div>Valor</div><div>Vencimento</div><div>Pagamento</div><div>Status</div><div></div>
+        <div>Nome</div><div>Chave PIX</div><div>Valor</div><div>Prejuízo</div><div>Vencimento</div><div>Pagamento</div><div>Status</div><div></div>
       </div>
       <div id="list"></div>
       <div class="add-row">
@@ -314,6 +368,14 @@
     // valor do prestador convertido para R$ (se estiver em USD, usa a cotação ao vivo)
     function valorBRL(r){
       const v = Number(r.valor) || 0;
+      if ((r.moeda || 'BRL') === 'USD'){
+        return v * (usdRate || 0);
+      }
+      return v;
+    }
+    // prejuízo (informativo, não entra nos totais a pagar) convertido para R$
+    function prejuizoBRL(r){
+      const v = Number(r.prejuizo) || 0;
       if ((r.moeda || 'BRL') === 'USD'){
         return v * (usdRate || 0);
       }
@@ -429,16 +491,40 @@
     }
 
     function currentCompetencia(){ return competenciaSelect.value || currentYm(); }
+    // filtro livre por período (dia até dia, atravessando meses/competências) — quando preenchido,
+    // manda mais que o seletor de competência
+    function periodoFiltroAtivo(){
+      const from = $('#filterDateFrom').value;
+      const to = $('#filterDateTo').value;
+      return !!(from || to);
+    }
     function visibleRows(){
-      const ym = currentCompetencia();
-      return allRows
-        .filter(r => (r.competencia || currentYm()) === ym)
-        .sort((a,b) => (a.nome||'').localeCompare(b.nome||'', 'pt-BR'));
+      const from = $('#filterDateFrom').value;
+      const to = $('#filterDateTo').value;
+      let rows;
+      if (from || to){
+        rows = allRows.filter(r => {
+          const venc = vencimentoStr(r.competencia, r.dia_vencimento);
+          if (from && venc < from) return false;
+          if (to && venc > to) return false;
+          return true;
+        });
+      } else {
+        const ym = currentCompetencia();
+        rows = allRows.filter(r => (r.competencia || currentYm()) === ym);
+      }
+      return rows.sort((a,b) => (a.nome||'').localeCompare(b.nome||'', 'pt-BR'));
     }
 
     function render(){
       const rows = visibleRows();
-      $('#panelCount').textContent = rows.length ? (rows.length + (rows.length===1?' prestador':' prestadores')) : '';
+      let countLabel = rows.length ? (rows.length + (rows.length===1?' prestador':' prestadores')) : '';
+      if (periodoFiltroAtivo()){
+        const from = $('#filterDateFrom').value, to = $('#filterDateTo').value;
+        const rangeLabel = (from ? fmtDateBR(from) : '…') + ' até ' + (to ? fmtDateBR(to) : '…');
+        countLabel += (countLabel ? ' · ' : '') + rangeLabel;
+      }
+      $('#panelCount').textContent = countLabel;
 
       const total = rows.reduce((s,r) => s + valorBRL(r), 0);
       const pago = rows.filter(r => r.status === 'pago').reduce((s,r) => s + valorBRL(r), 0);
@@ -510,6 +596,29 @@
         valorWrap.appendChild(sub);
       }
 
+      const prejuizoCell = document.createElement('div');
+      prejuizoCell.className = 'prejuizo-cell';
+      const prejuizoInput = document.createElement('input');
+      prejuizoInput.className = 'prejuizo';
+      const prejVal = Number(r.prejuizo) || 0;
+      prejuizoInput.value = prejVal ? Math.abs(prejVal) : '';
+      prejuizoInput.placeholder = '—';
+      prejuizoInput.inputMode = 'decimal';
+      prejuizoInput.title = 'Prejuízo (só para controle — não entra no total a pagar)';
+      prejuizoInput.addEventListener('change', () => {
+        const n = parseFloat(String(prejuizoInput.value).replace(',', '.'));
+        // sempre guardado como valor negativo (prejuízo)
+        updateRow(r.id, {prejuizo: isNaN(n) || n === 0 ? 0 : -Math.abs(n)});
+      });
+      prejuizoCell.appendChild(prejuizoInput);
+      if (prejVal){
+        const sub = document.createElement('div');
+        sub.className = 'valor-sub';
+        sub.style.color = 'var(--danger)';
+        sub.textContent = '≈ ' + fmtMoney(prejuizoBRL(r));
+        prejuizoCell.appendChild(sub);
+      }
+
       const vencWrap = document.createElement('div');
       vencWrap.className = 'vencimento';
       const diaSel = document.createElement('select');
@@ -561,6 +670,7 @@
       row.appendChild(nomeWrap);
       row.appendChild(pixInput);
       row.appendChild(valorWrap);
+      row.appendChild(prejuizoCell);
       row.appendChild(vencWrap);
       row.appendChild(dataInput);
       row.appendChild(statusBtn);
@@ -616,6 +726,21 @@
 
     competenciaSelect.addEventListener('change', () => {
       competenciaSelect.dataset.userPicked = '1';
+      render();
+    });
+
+    ['filterDateFrom','filterDateTo'].forEach(id => {
+      document.getElementById(id).addEventListener('change', () => {
+        $('#clearFiltroBtn').hidden = !periodoFiltroAtivo();
+        competenciaSelect.disabled = periodoFiltroAtivo();
+        render();
+      });
+    });
+    $('#clearFiltroBtn').addEventListener('click', () => {
+      $('#filterDateFrom').value = '';
+      $('#filterDateTo').value = '';
+      $('#clearFiltroBtn').hidden = true;
+      competenciaSelect.disabled = false;
       render();
     });
 
