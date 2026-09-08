@@ -496,15 +496,6 @@
     }
 
     function currentCompetencia(){ return competenciaSelect.value || currentYm(); }
-    // primeiro e último dia (YYYY-MM-DD) do mês de uma competência "YYYY-MM"
-    function competenciaRange(comp){
-      const ym = comp || currentYm();
-      const [y,m] = ym.split('-').map(Number);
-      const start = ym + '-01';
-      const lastDay = new Date(y, m, 0).getDate(); // dia 0 do próximo mês = último dia deste mês
-      const end = ym + '-' + pad2(lastDay);
-      return [start, end];
-    }
     // filtro livre por período (dia até dia, atravessando meses/competências) — quando preenchido,
     // manda mais que o seletor de competência
     function periodoFiltroAtivo(){
@@ -517,13 +508,13 @@
       const to = $('#filterDateTo').value;
       let rows;
       if (from || to){
-        // mostra qualquer prestador cuja competência (mês inteiro) toque o intervalo escolhido —
-        // assim "01/09 até hoje" mostra tudo de setembro, mesmo que o vencimento exato seja dia 10/25
+        // mostra prestadores cuja data de vencimento caia no período — e, se já foi pago,
+        // também considera a data de pagamento, pra dar pra achar tanto quem vence
+        // quanto quem foi pago dentro do intervalo escolhido (mesmo atravessando meses)
         rows = allRows.filter(r => {
-          const [compStart, compEnd] = competenciaRange(r.competencia);
-          if (from && compEnd < from) return false;
-          if (to && compStart > to) return false;
-          return true;
+          const venc = vencimentoStr(r.competencia, r.dia_vencimento);
+          const datas = r.data_pagamento ? [venc, r.data_pagamento] : [venc];
+          return datas.some(d => (!from || d >= from) && (!to || d <= to));
         });
       } else {
         const ym = currentCompetencia();
