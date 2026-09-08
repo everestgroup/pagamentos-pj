@@ -125,6 +125,17 @@
     margin-left:6px; width:fit-content;
   }
 
+  .valor-wrap{ display:flex; flex-direction:column; gap:2px; }
+  .valor-row{ display:flex; align-items:center; gap:2px; }
+  .valor-row input.valor{ flex:1; min-width:0; }
+  .moeda-sel{
+    border:1px solid transparent; background:transparent; color:var(--text-muted); font-family:inherit;
+    font-size:11.5px; padding:4px 2px; border-radius:6px;
+  }
+  .moeda-sel:hover{ border-color:var(--border); }
+  .moeda-sel:focus{ outline:none; border-color:var(--accent); background:var(--surface-2); }
+  .valor-sub{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--text-muted); padding-left:2px; white-space:nowrap; }
+
   .status-badge{
     border:none; cursor:pointer; font-family:'Source Sans 3', sans-serif; font-size:12.5px; font-weight:600;
     padding:6px 12px; border-radius:100px; display:inline-flex; align-items:center; gap:6px; justify-self:start;
@@ -205,6 +216,10 @@
           <span>Competência</span>
           <select id="competenciaSelect"></select>
         </div>
+        <div class="competencia" id="usdRateBadge" hidden>
+          <span>US$ → R$</span>
+          <span id="usdRateValue" style="font-family:'IBM Plex Mono', monospace; font-weight:600;"></span>
+        </div>
         <button class="btn btn-ghost" id="logoutBtn">Sair</button>
       </div>
     </header>
@@ -229,6 +244,10 @@
         <input class="nome" id="newNome" placeholder="Nome do prestador">
         <input class="pix" id="newPix" placeholder="Chave PIX">
         <input class="valor" id="newValor" placeholder="Valor" inputmode="decimal">
+        <select id="newMoeda" title="Moeda">
+          <option value="BRL" selected>R$</option>
+          <option value="USD">US$</option>
+        </select>
         <select id="newDiaVencimento" title="Dia de vencimento">
           <option value="10">Vence dia 10</option>
           <option value="25">Vence dia 25</option>
@@ -266,6 +285,40 @@
 
     let allRows = [];
     let channel = null;
+    let usdRate = null;
+
+    async function fetchUsdRate(){
+      try{
+        const res = await fetch('https://api.frankfurter.app/latest?from=USD&to=BRL');
+        const data = await res.json();
+        if (data && data.rates && data.rates.BRL){
+          usdRate = data.rates.BRL;
+          updateRateBadge(false);
+          render();
+        }
+      }catch(e){
+        if (!usdRate){
+          usdRate = 5.30;
+          updateRateBadge(true);
+          render();
+        }
+      }
+    }
+    function updateRateBadge(isFallback){
+      const badge = $('#usdRateBadge');
+      const val = $('#usdRateValue');
+      if (!badge || !val || !usdRate) return;
+      badge.hidden = false;
+      val.textContent = 'R$ ' + usdRate.toFixed(4) + (isFallback ? ' (aprox.)' : '');
+    }
+    // valor do prestador convertido para R$ (se estiver em USD, usa a cotação ao vivo)
+    function valorBRL(r){
+      const v = Number(r.valor) || 0;
+      if ((r.moeda || 'BRL') === 'USD'){
+        return v * (usdRate || 0);
+      }
+      return v;
+    }
 
     function showToast(msg){
       toastEl.textContent = msg;
@@ -387,8 +440,8 @@
       const rows = visibleRows();
       $('#panelCount').textContent = rows.length ? (rows.length + (rows.length===1?' prestador':' prestadores')) : '';
 
-      const total = rows.reduce((s,r) => s + (Number(r.valor)||0), 0);
-      const pago = rows.filter(r => r.status === 'pago').reduce((s,r) => s + (Number(r.valor)||0), 0);
+      const total = rows.reduce((s,r) => s + valorBRL(r), 0);
+      const pago = rows.filter(r => r.status === 'pago').reduce((s,r) => s + valorBRL(r), 0);
       const pendente = total - pago;
       $('#statCount').textContent = rows.length;
       $('#statTotal').textContent = fmtMoney(total);
@@ -425,6 +478,10 @@
       pixInput.placeholder = 'Chave PIX';
       pixInput.addEventListener('change', () => updateRow(r.id, {chave_pix: pixInput.value}));
 
+      const valorWrap = document.createElement('div');
+      valorWrap.className = 'valor-wrap';
+      const valorRow = document.createElement('div');
+      valorRow.className = 'valor-row';
       const valorInput = document.createElement('input');
       valorInput.className = 'valor';
       valorInput.value = r.valor != null ? r.valor : '';
@@ -434,6 +491,24 @@
         const n = parseFloat(String(valorInput.value).replace(',', '.'));
         updateRow(r.id, {valor: isNaN(n) ? 0 : n});
       });
+      const moedaSel = document.createElement('select');
+      moedaSel.className = 'moeda-sel';
+      [['BRL','R$'], ['USD','US$']].forEach(([val, label]) => {
+        const opt = document.createElement('option');
+        opt.value = val; opt.textContent = label;
+        if ((r.moeda || 'BRL') === val) opt.selected = true;
+        moedaSel.appendChild(opt);
+      });
+      moedaSel.addEventListener('change', () => updateRow(r.id, {moeda: moedaSel.value}));
+      valorRow.appendChild(valorInput);
+      valorRow.appendChild(moedaSel);
+      valorWrap.appendChild(valorRow);
+      if ((r.moeda || 'BRL') === 'USD'){
+        const sub = document.createElement('div');
+        sub.className = 'valor-sub';
+        sub.textContent = '≈ ' + fmtMoney(valorBRL(r));
+        valorWrap.appendChild(sub);
+      }
 
       const vencWrap = document.createElement('div');
       vencWrap.className = 'vencimento';
@@ -485,7 +560,7 @@
 
       row.appendChild(nomeWrap);
       row.appendChild(pixInput);
-      row.appendChild(valorInput);
+      row.appendChild(valorWrap);
       row.appendChild(vencWrap);
       row.appendChild(dataInput);
       row.appendChild(statusBtn);
@@ -525,8 +600,9 @@
       if (!nome){ $('#newNome').focus(); return; }
       const valor = parseFloat(valorRaw.replace(',', '.'));
       const diaVencimento = parseInt($('#newDiaVencimento').value, 10);
+      const moeda = $('#newMoeda').value;
       addRow({
-        nome, chave_pix: pix, valor: isNaN(valor) ? 0 : valor,
+        nome, chave_pix: pix, valor: isNaN(valor) ? 0 : valor, moeda,
         competencia: currentCompetencia(), dia_vencimento: diaVencimento, status: 'pendente'
       });
       $('#newNome').value = ''; $('#newPix').value = ''; $('#newValor').value = '';
@@ -552,7 +628,7 @@
       const pendentes = visibleRows().filter(r => r.status !== 'pago');
       if (!pendentes.length){ showToast('Nenhum pagamento pendente nesta competência.'); return; }
       const header = 'chave_pix;valor;nome';
-      const lines = pendentes.map(r => [r.chave_pix||'', (Number(r.valor)||0).toFixed(2), r.nome||''].map(csvEscape).join(';'));
+      const lines = pendentes.map(r => [r.chave_pix||'', valorBRL(r).toFixed(2), r.nome||''].map(csvEscape).join(';'));
       const csv = [header].concat(lines).join('\n');
       const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
       const url = URL.createObjectURL(blob);
@@ -567,6 +643,9 @@
 
     // checa sessão já existente ao carregar
     sb.auth.getSession();
+    // cotação USD -> BRL ao vivo, atualizada periodicamente
+    fetchUsdRate();
+    setInterval(fetchUsdRate, 5 * 60 * 1000);
   })();
   </script>
 </body>
